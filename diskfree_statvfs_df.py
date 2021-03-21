@@ -18,7 +18,7 @@ print("statvfs results: Partition (MB):" , round(disk_size / 1024 ** 2), "Availa
 cmd = "df -m " + dir  # show in MB
 for thisline in os.popen(cmd).readlines():
     if thisline.startswith("/"):
-        device, blocks, used, available, _, _ = thisline.split()
+        device, blocks, used, available = thisline.split()[:4]
         print("df -m results:   Partition (MB):", blocks, "Available (MB):", available)
         
 '''
