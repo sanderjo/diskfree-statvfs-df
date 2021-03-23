@@ -11,16 +11,37 @@ print("dir is", dir)
 s = os.statvfs(dir)
 disk_size = float(s.f_blocks) * float(s.f_frsize)
 available = float(s.f_bavail) * float(s.f_frsize)
-print("statvfs results: Partition (MB):" , round(disk_size / 1024 ** 2), "Available (MB):", round(available / 1024 ** 2))
+
+statvfs_disk_size_MB = round(disk_size / 1024 ** 2)
+statvfs_available_MB = round(available / 1024 ** 2)
+
+
+
+print("statvfs results: Partition (MB):" , statvfs_disk_size_MB, "Available (MB):", statvfs_available_MB)
 
 
 # df -m (space in MB)
 cmd = "df -m " + dir  # show in MB
 for thisline in os.popen(cmd).readlines():
     if thisline.startswith("/"):
-        device, blocks, used, available = thisline.split()[:4]
-        print("df -m results:   Partition (MB):", blocks, "Available (MB):", available)
-        
+        _, df_blocks_MB, _, df_available_MB = thisline.split()[:4]
+        df_blocks_MB = int(df_blocks_MB)
+        df_available_MB = int(df_available_MB)
+        print("df -m results:   Partition (MB):", df_blocks_MB, "Available (MB):", df_available_MB)
+
+# calculate diff
+diff_disk_size_MB = df_blocks_MB - statvfs_disk_size_MB
+diff_available_MB = df_available_MB - statvfs_available_MB
+
+
+
+if diff_disk_size_MB > 10 or diff_available_MB > 10:
+	print("Diff! in MB. Disk:", diff_disk_size_MB, "Available:", diff_available_MB)
+	print("Diff! in TB. Disk:", diff_disk_size_MB / 1024**2 , "Available:", diff_available_MB / 1024**2)	
+else:
+	print("no diff")
+
+
 '''
 
 Linux:
