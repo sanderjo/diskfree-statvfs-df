@@ -11,7 +11,8 @@ from ctypes import util
 
 def disk_free_os_df(directory):
 	# On any any POSIX with any disksize, "df" is always right, but heavy as it needs a process
-	cmd = "df -m " + dir  # show in MB
+	directory = '"' + directory + '"'
+	cmd = "df -m " + directory  # show in MB
 	for thisline in os.popen(cmd).readlines():
 		if thisline.startswith("/"):
 			_, df_blocks_MB, _, df_available_MB = thisline.split()[:4]
@@ -24,7 +25,7 @@ def disk_free_os_df(directory):
 def disk_free_python_statvfs(directory):
 	# just plain python's os.statvfs
 	# Works almost always, but not on MacOS with >4TB drives
-	s = os.statvfs(dir)
+	s = os.statvfs(directory)
 	disk_size = float(s.f_blocks) * float(s.f_frsize)
 	available = float(s.f_bavail) * float(s.f_frsize)
 
@@ -86,7 +87,7 @@ def disk_free_clib_statfs32(directory):
 	
 
 	kern = CDLL(util.find_library('c'), use_errno=True)
-	root_volume = create_string_buffer(str.encode(dir))
+	root_volume = create_string_buffer(str.encode(directory))
 	fs_info = statfs32()
 	result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
 	disk_size_MB = fs_info.f_blocks * fs_info.f_bsize / 1024**2
@@ -164,6 +165,8 @@ try:
     dir = sys.argv[1]
 except:
     dir = "."
+    
+
 print("dir is", dir)
 
 print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
