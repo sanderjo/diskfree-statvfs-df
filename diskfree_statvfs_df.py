@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys
+import os, sys, platform
 
 
 
@@ -51,18 +51,6 @@ class statfs64(Structure):
                 ("f_reserved",    c_uint32*8),
                ]
 
-'''
-kern = CDLL('/usr/lib/system/libsystem_kernel.dylib')
-fs_info = statfs32()
-# put the path to any file on the mounted file system here
-root_volume = create_string_buffer('/')
-result = kern.statfs(root_volume, byref(fs_info))
-'''
-
-
-
-
-
 
 
 # MAIN:
@@ -74,27 +62,40 @@ except:
     dir = "."
 print("dir is", dir)
 
-# statvfs
-s = os.statvfs(dir)
-disk_size = float(s.f_blocks) * float(s.f_frsize)
-available = float(s.f_bavail) * float(s.f_frsize)
 
-statvfs_disk_size_MB = round(disk_size / 1024 ** 2)
-statvfs_available_MB = round(available / 1024 ** 2)
+use_statfs32 = False
+
+if platform.system().lower() == "darwin":
+	# MacOS, so we need to see if the disk is >4TB, and 'df' is always reliable
+	# df -m (space in MB)
+	cmd = "df -m " + dir  # show in MB
+	for thisline in os.popen(cmd).readlines():
+		if thisline.startswith("/"):
+			_, df_blocks_MB, _, df_available_MB = thisline.split()[:4]
+			df_blocks_MB = int(df_blocks_MB)
+			df_available_MB = int(df_available_MB)
+			#print("df -m results:   Partition (MB):", df_blocks_MB, "Available (MB):", df_available_MB)
+			break # just line, and we're done
+		
+	if df_available_MB > 4 * 1024**2:
+		print("big disk")
+		use_statfs32 = True
+
+if not use_statfs32:
+
+	# just plain python's os.statvfs
+	s = os.statvfs(dir)
+	disk_size = float(s.f_blocks) * float(s.f_frsize)
+	available = float(s.f_bavail) * float(s.f_frsize)
+
+	statvfs_disk_size_MB = round(disk_size / 1024 ** 2)
+	statvfs_available_MB = round(available / 1024 ** 2)
+	print("statvfs results: Partition (MB):" , statvfs_disk_size_MB, "Available (MB):", statvfs_available_MB)
 
 
 
-print("statvfs results: Partition (MB):" , statvfs_disk_size_MB, "Available (MB):", statvfs_available_MB)
 
-
-# df -m (space in MB)
-cmd = "df -m " + dir  # show in MB
-for thisline in os.popen(cmd).readlines():
-    if thisline.startswith("/"):
-        _, df_blocks_MB, _, df_available_MB = thisline.split()[:4]
-        df_blocks_MB = int(df_blocks_MB)
-        df_available_MB = int(df_available_MB)
-        print("df -m results:   Partition (MB):", df_blocks_MB, "Available (MB):", df_available_MB)
+'''
 
 # calculate diff
 diff_disk_size_MB = df_blocks_MB - statvfs_disk_size_MB
@@ -108,38 +109,38 @@ if diff_disk_size_MB > 10 or diff_available_MB > 10:
 else:
 	print("no diff")
 
+'''
+
+if use_statfs32:
+
+	# direct system call to statfs(), not statvfs()
+	print("\nsystem calls to statfs()")
+	from ctypes import util
+	kern = CDLL(util.find_library('c'), use_errno=True)
+	root_volume = create_string_buffer(str.encode(dir))
+	print("root_volume is", root_volume)
+	print("\nstatfs32")
+	fs_info = statfs32()
+	result = kern.statfs(root_volume, byref(fs_info))
+	print("f_blocks", fs_info.f_blocks)
+	print("f_bsize", fs_info.f_bsize)
+	print("f_bavail", fs_info.f_bavail)
+	print("Total Space MB",      fs_info.f_blocks * fs_info.f_bsize / 1024**2)
+	print("Total Free Space MB", fs_info.f_bfree  * fs_info.f_bsize / 1024**2)
 
 
 
-# direct system call to statfs(), not statvfs()
 
-
-print("\nsystem calls to statfs()")
-
-from ctypes import util
-
-
-kern = CDLL(util.find_library('c'), use_errno=True)
-root_volume = create_string_buffer(str.encode(dir))
-
-print("\nstatfs32")
-fs_info = statfs32()
-result = kern.statfs(root_volume, byref(fs_info))
-print("f_blocks", fs_info.f_blocks)
-print("f_bsize", fs_info.f_bsize)
-print("f_bavail", fs_info.f_bavail)
-print("Total Space MB", fs_info.f_blocks * fs_info.f_bsize / 1024**2)
-print("Total Free Space MB", fs_info.f_bfree * fs_info.f_bsize / 1024**2)
-
-
+'''
 print("\nstatfs64")
 fs_info = statfs64()
 result = kern.statfs(root_volume, byref(fs_info))
 print("f_blocks", fs_info.f_blocks)
 print("f_bsize", fs_info.f_bsize)
 print("f_bavail", fs_info.f_bavail)
-print("Total Space MB", fs_info.f_blocks * fs_info.f_bsize / 1024**2)
-print("Total Free Space MB", fs_info.f_bfree * fs_info.f_bsize / 1024**2)
+print("Total Space MB",      fs_info.f_blocks * fs_info.f_bsize / 1024**2)
+print("Total Free Space MB", fs_info.f_bfree  * fs_info.f_bsize / 1024**2)
+'''
 
 
 
