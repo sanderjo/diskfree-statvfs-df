@@ -168,6 +168,9 @@ except:
     
 
 print("dir is", dir)
+if not os.path.isdir(dir):
+	print("dir does exist")
+	sys.exit(1)
 
 print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
 print("python's os.statvfs() says", disk_free_python_statvfs(dir))
