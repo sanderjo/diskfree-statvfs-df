@@ -138,7 +138,8 @@ print("Now the real determination")
 
 use_statfs32 = False
 
-if platform.system().lower() == "darwin" and disk_free_os_df(dir) > 4 * 1024**2:
+
+if platform.system().lower() == "darwin" and disk_free_os_df(dir)[0] > 4 * 1024**2:
 	# MacOS, and disk bigger than 4TB, so use statfs32()
 	use_statfs32 = True
 
