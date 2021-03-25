@@ -154,8 +154,8 @@ def TEST_disk_free_clib_statfs32(directory, counter):
 	for i in range(counter):
 		result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
 		
-	disk_size_MB = fs_info.f_blocks * fs_info.f_bsize / 1024**2
-	free_size_MB = fs_info.f_bfree  * fs_info.f_bsize / 1024**2
+	disk_size_MB = round(fs_info.f_blocks * fs_info.f_bsize / 1024**2)
+	free_size_MB = round(fs_info.f_bfree  * fs_info.f_bsize / 1024**2)
 	return disk_size_MB, free_size_MB
 
 
