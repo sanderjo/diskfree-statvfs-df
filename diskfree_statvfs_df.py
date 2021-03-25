@@ -37,7 +37,8 @@ def disk_free_python_statvfs(directory):
 
 def disk_free_clib_statfs32(directory):
 	# direct system call to c-lib's statfs(), not python's os.statvfs()
-	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?	
+	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?
+	# Based on code of pudquick and blackntan
 	
 	# when _DARWIN_FEATURE_64_BIT_INODE is not defined
 	class statfs32(Structure):
@@ -91,7 +92,7 @@ def disk_free_clib_statfs32(directory):
 	fs_info = statfs32()
 	result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
 	disk_size_MB = fs_info.f_blocks * fs_info.f_bsize / 1024**2
-	free_size_MB = fs_info.f_bfree  * fs_info.f_bsize / 1024**2
+	free_size_MB = fs_info.f_bavail * fs_info.f_bsize / 1024**2
 	return disk_size_MB, free_size_MB
 
 
@@ -165,12 +166,12 @@ try:
     dir = sys.argv[1]
 except:
     dir = "."
-    
+
+if not os.path.isdir(dir):
+	print("dir", dir, "does exist")
+	sys.exit(1)
 
 print("dir is", dir)
-if not os.path.isdir(dir):
-	print("dir does exist")
-	sys.exit(1)
 
 print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
 print("python's os.statvfs() says", disk_free_python_statvfs(dir))
@@ -178,7 +179,7 @@ print("clib statfs32 says", disk_free_clib_statfs32(dir))
 
 
 
-counter = 1000
+counter = 0
 if counter > 0:
 
 	print("\nMeasure time it takes for X loops:", counter)
@@ -212,8 +213,6 @@ if counter > 0:
 print("Now the real determination")
 
 use_statfs32 = False
-
-
 if platform.system().lower() == "darwin" and disk_free_os_df(dir)[0] > 4 * 1024**2:
 	# MacOS, and disk bigger than 4TB, so use statfs32()
 	use_statfs32 = True
