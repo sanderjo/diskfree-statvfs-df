@@ -1,6 +1,8 @@
 from ctypes import * # CDLL, Structure, c_uint32, c_int64, c_uint64, c_char, create_string_buffer, byref, c_ubyte, c_int16, c_int64, c_int32
 from ctypes import util
 
+import sys, os
+
 '''
 from "man statfs" ... used as input for the class statfs(Structure):
 
@@ -51,10 +53,19 @@ def linux_disk_free_clib_statfs(directory):
 	return round(disk_size_MB), round(free_size_MB)
 
 
-import sys
-dir = sys.argv[1]
 
-print(dir)
+try:
+    dir = sys.argv[1]
+except:
+    dir = "."
+
+if not os.path.isdir(dir):
+	print("dir", dir, "does exist")
+	sys.exit(1)
+
+print("dir is", dir)
+
+
 
 print(linux_disk_free_clib_statfs(dir))
 
