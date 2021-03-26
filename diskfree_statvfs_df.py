@@ -35,7 +35,7 @@ def disk_free_python_statvfs(directory):
 	return statvfs_disk_size_MB, statvfs_available_MB
 
 
-def disk_free_clib_statfs32(directory):
+def disk_free_macos_clib_statfs32(directory):
 	# direct system call to c-lib's statfs(), not python's os.statvfs()
 	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?
 	# Based on code of pudquick and blackntan
@@ -77,7 +77,7 @@ def disk_free_clib_statfs32(directory):
 
 
 
-def disk_free_clib_statfs64(directory):
+def disk_free_macos_clib_statfs64(directory):
 	# direct system call to c-lib's statfs(), not python's os.statvfs()
 	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?
 	# Based on code of pudquick and blackntan
@@ -116,7 +116,7 @@ def disk_free_clib_statfs64(directory):
 
 
 
-def TEST_disk_free_clib_statfs32(directory, counter):
+def TEST_disk_free_macos_clib_statfs32(directory, counter):
 	if True:
 		if True:
 			# direct system call to c-lib's statfs(), not python's os.statvfs()
@@ -197,10 +197,10 @@ print("dir is", dir)
 
 print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
 print("python's os.statvfs() says", disk_free_python_statvfs(dir))
-print("clib statfs32 says", disk_free_clib_statfs32(dir))
-print("clib statfs64 says", disk_free_clib_statfs64(dir))
+print("disk_free_macos_clib_statfs32 says", disk_free_macos_clib_statfs32(dir))
+print("disk_free_macos_clib_statfs64 says", disk_free_macos_clib_statfs64(dir))
 
-#print("Linux clib statfs32 says", disk_free_clib_statfs32_LINUX(dir))
+#print("Linux clib statfs32 says", disk_free_macos_clib_statfs32_LINUX(dir))
 
 
 
@@ -222,13 +222,13 @@ if counter > 0:
 	
 	start_time = time.time()
 	for i in range(counter):
-		disk_free_clib_statfs32(dir)
-	print("disk_free_clib_statfs32() method: --- %s seconds ---" % (time.time() - start_time))
+		disk_free_macos_clib_statfs32(dir)
+	print("disk_free_macos_clib_statfs32() method: --- %s seconds ---" % (time.time() - start_time))
 
 
 	start_time = time.time()
-	TEST_disk_free_clib_statfs32(dir, counter)
-	print("TEST_disk_free_clib_statfs32() method: --- %s seconds ---" % (time.time() - start_time))	
+	TEST_disk_free_macos_clib_statfs32(dir, counter)
+	print("TEST_disk_free_macos_clib_statfs32() method: --- %s seconds ---" % (time.time() - start_time))	
 
 	
 	print("Done with measurement\n")
@@ -247,7 +247,7 @@ if platform.system().lower() == "darwin" and disk_free_os_df(dir)[0] > 4 * 1024*
 if not use_statfs32:
 	print(disk_free_python_statvfs(dir))
 else:
-	print(disk_free_clib_statfs32(dir))
+	print(disk_free_macos_clib_statfs32(dir))
 
 
 '''
