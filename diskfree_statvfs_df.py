@@ -114,6 +114,48 @@ def disk_free_macos_clib_statfs64(directory):
 
 
 
+def disk_free_macos_clib_statfs64_WORKING(directory):
+
+	class statfs64(Structure):
+	    _fields_ = [
+		        ("f_bsize",       c_uint32),
+		        ("f_iosize",      c_int32),
+		        ("f_blocks",      c_uint64),
+		        ("f_bfree",       c_uint64),
+		        ("f_bavail",      c_uint64),
+		        ("f_files",       c_uint64),
+		        ("f_ffree",       c_uint64),
+		        ("f_fsid",        c_uint64),
+		        ("f_owner",       c_uint32),
+		        ("f_type",        c_uint32),
+		        ("f_flags",       c_uint32),
+		        ("f_fssubtype",   c_uint32),
+		        ("f_fstypename",  c_char*16),
+		        ("f_mntonname",   c_char*1024),
+		        ("f_mntfromname", c_char*1024),
+		        ("f_reserved",    c_uint32*8),
+		       ]
+
+	kern = CDLL(util.find_library('c'), use_errno=True)
+	fs_info64 = statfs64()
+	root_volume = create_string_buffer(str.encode(sys.argv[1]))
+	result64 = kern.statfs64(root_volume, byref(fs_info64))
+
+	'''
+	print('statfs64 result', result64)
+	print("f_blocks", fs_info64.f_blocks)
+	print("f_bsize", fs_info64.f_bsize)
+	print("f_bavail", fs_info64.f_bavail)
+
+	print("Total Space MB", fs_info64.f_blocks * fs_info64.f_bsize / 1024**2 )
+	print("Total Free Space MB", fs_info64.f_bavail * fs_info64.f_bsize / 1024**2 )
+	'''
+	
+	disk_size_MB = round(fs_info64.f_blocks * fs_info64.f_bsize / 1024**2)
+	free_size_MB = round(fs_info64.f_bavail * fs_info64.f_bsize / 1024**2)
+	return disk_size_MB, free_size_MB
+
+
 
 
 def TEST_disk_free_macos_clib_statfs32(directory, counter):
@@ -199,6 +241,9 @@ print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(di
 print("python's os.statvfs() says", disk_free_python_statvfs(dir))
 print("disk_free_macos_clib_statfs32 says", disk_free_macos_clib_statfs32(dir))
 print("disk_free_macos_clib_statfs64 says", disk_free_macos_clib_statfs64(dir))
+print("disk_free_macos_clib_statfs64_WORKING says", disk_free_macos_clib_statfs64_WORKING(dir))
+
+
 
 #print("Linux clib statfs32 says", disk_free_macos_clib_statfs32_LINUX(dir))
 
