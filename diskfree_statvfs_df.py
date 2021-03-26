@@ -31,10 +31,159 @@ def disk_free_python_statvfs(directory):
 
 	statvfs_disk_size_MB = round(disk_size / 1024 ** 2)
 	statvfs_available_MB = round(available / 1024 ** 2)
-	#print("statvfs results: Partition (MB):" , statvfs_disk_size_MB, "Available (MB):", statvfs_available_MB)
 	return statvfs_disk_size_MB, statvfs_available_MB
 
 
+def disk_free_macos_clib_statfs64(directory):
+	# MacOS only!
+	# direct system call to c-lib's statfs(), not python's os.statvfs()
+	# Based on code of pudquick and blackntan
+
+	class statfs64(Structure):
+	    _fields_ = [
+		        ("f_bsize",       c_uint32),
+		        ("f_iosize",      c_int32),
+		        ("f_blocks",      c_uint64),
+		        ("f_bfree",       c_uint64),
+		        ("f_bavail",      c_uint64),
+		        ("f_files",       c_uint64),
+		        ("f_ffree",       c_uint64),
+		        ("f_fsid",        c_uint64),
+		        ("f_owner",       c_uint32),
+		        ("f_type",        c_uint32),
+		        ("f_flags",       c_uint32),
+		        ("f_fssubtype",   c_uint32),
+		        ("f_fstypename",  c_char*16),
+		        ("f_mntonname",   c_char*1024),
+		        ("f_mntfromname", c_char*1024),
+		        ("f_reserved",    c_uint32*8),
+		       ]
+
+	kern = CDLL(util.find_library('c'), use_errno=True)
+	fs_info64 = statfs64()
+	root_volume = create_string_buffer(str.encode(directory))
+	result64 = kern.statfs64(root_volume, byref(fs_info64))
+	disk_size_MB = round(fs_info64.f_blocks * fs_info64.f_bsize / 1024**2)
+	avail_size_MB = round(fs_info64.f_bavail * fs_info64.f_bsize / 1024**2)
+	return disk_size_MB, avail_size_MB
+	
+
+	
+def disk_free_linux_clib_statfs(directory):
+	# Linux only! 
+	# direct system call to c-lib's statfs(), not python's os.statvfs()
+	# Based on code of pudquick and blackntan
+
+	class statfs(Structure):
+	    _fields_ = [
+                ("f_type",       c_int64),
+                ("f_bsize",      c_int64),
+                ("f_blocks",     c_ulong),
+                ("f_bfree",      c_ulong),
+                ("f_bavail",     c_ulong),
+                ("f_files",      c_ulonglong),
+                ("f_ffree",      c_ulonglong),
+                ("f_fsid",       c_int64),
+                ("f_namelen",    c_int64),
+                ("f_frsize",     c_int64),
+                ("f_flags",      c_int64),
+                ("f_fspare",     c_int64),
+              ]
+
+	kern = CDLL(util.find_library('c'), use_errno=True)
+	root_volume = create_string_buffer(str.encode(directory))
+	fs_info = statfs()
+	result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
+	disk_size_MB = fs_info.f_blocks * fs_info.f_bsize / 1024**2
+	avail_size_MB = fs_info.f_bavail  * fs_info.f_bsize / 1024**2
+	return round(disk_size_MB), round(avail_size_MB)
+
+
+
+
+
+# MAIN:
+
+
+try:
+    dir = sys.argv[1]
+except:
+    dir = "."
+
+if not os.path.isdir(dir):
+	print("dir", dir, "does exist")
+	sys.exit(1)
+
+print("dir is", dir)
+print("platform is", platform.system().lower())
+
+print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
+print("python's os.statvfs() says", disk_free_python_statvfs(dir))
+#print("disk_free_macos_clib_statfs32 says", disk_free_macos_clib_statfs32(dir))
+print("disk_free_macos_clib_statfs64 says", disk_free_macos_clib_statfs64(dir))
+print("disk_free_linux_clib_statfs says", disk_free_linux_clib_statfs(dir))
+#print("disk_free_macos_clib_statfs64_bad says", disk_free_macos_clib_statfs64_WORKING(dir))
+
+
+
+#print("Linux clib statfs32 says", disk_free_macos_clib_statfs32_LINUX(dir))
+
+
+
+counter = 0
+if counter > 0:
+
+	print("\nMeasure time it takes for X loops:", counter)
+	import time
+	
+	start_time = time.time()
+	for i in range(counter):
+		disk_free_os_df(dir)
+	print("disk_free_os_df() method: --- %s seconds ---" % (time.time() - start_time))
+
+	start_time = time.time()
+	for i in range(counter):
+		disk_free_python_statvfs(dir)
+	print("disk_free_python_statvfs() method: --- %s seconds ---" % (time.time() - start_time))
+	
+	start_time = time.time()
+	for i in range(counter):
+		disk_free_macos_clib_statfs64(dir)
+	print("disk_free_macos_clib_statfs64() method: --- %s seconds ---" % (time.time() - start_time))
+
+
+
+	
+	print("Done with measurement\n")
+
+
+
+print("Now the real determination")
+
+use_statfs32 = False
+if platform.system().lower() == "darwin" and disk_free_os_df(dir)[0] > 4 * 1024**2:
+	# MacOS, and disk bigger than 4TB, so use statfs32()
+	use_statfs32 = True
+
+# We're done. Now use it
+
+if not use_statfs32:
+	print(disk_free_python_statvfs(dir))
+else:
+	print(disk_free_macos_clib_statfs32(dir))
+
+
+'''
+
+Linux:
+$ df -m .
+Filesystem   1M-blocks   Used Available Capacity iused      ifree %iused  Mounted on
+/dev/disk0s2    953049 428409    524390    45% 1754874 4293212405    0%   /
+
+
+'''
+
+# not needed anymore
 def disk_free_macos_clib_statfs32(directory):
 	# direct system call to c-lib's statfs(), not python's os.statvfs()
 	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?
@@ -74,10 +223,13 @@ def disk_free_macos_clib_statfs32(directory):
 	disk_size_MB = round(fs_info.f_blocks * fs_info.f_bsize / 1024**2)
 	free_size_MB = round(fs_info.f_bavail * fs_info.f_bsize / 1024**2)
 	return disk_size_MB, free_size_MB
+	
+
+#### OLD OLD STUFF
 
 
-
-def disk_free_macos_clib_statfs64(directory):
+'''
+def disk_free_macos_clib_statfs64_BAD(directory):
 	# direct system call to c-lib's statfs(), not python's os.statvfs()
 	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?
 	# Based on code of pudquick and blackntan
@@ -114,46 +266,7 @@ def disk_free_macos_clib_statfs64(directory):
 
 
 
-def disk_free_macos_clib_statfs64_WORKING(directory):
 
-	class statfs64(Structure):
-	    _fields_ = [
-		        ("f_bsize",       c_uint32),
-		        ("f_iosize",      c_int32),
-		        ("f_blocks",      c_uint64),
-		        ("f_bfree",       c_uint64),
-		        ("f_bavail",      c_uint64),
-		        ("f_files",       c_uint64),
-		        ("f_ffree",       c_uint64),
-		        ("f_fsid",        c_uint64),
-		        ("f_owner",       c_uint32),
-		        ("f_type",        c_uint32),
-		        ("f_flags",       c_uint32),
-		        ("f_fssubtype",   c_uint32),
-		        ("f_fstypename",  c_char*16),
-		        ("f_mntonname",   c_char*1024),
-		        ("f_mntfromname", c_char*1024),
-		        ("f_reserved",    c_uint32*8),
-		       ]
-
-	kern = CDLL(util.find_library('c'), use_errno=True)
-	fs_info64 = statfs64()
-	root_volume = create_string_buffer(str.encode(sys.argv[1]))
-	result64 = kern.statfs64(root_volume, byref(fs_info64))
-
-	'''
-	print('statfs64 result', result64)
-	print("f_blocks", fs_info64.f_blocks)
-	print("f_bsize", fs_info64.f_bsize)
-	print("f_bavail", fs_info64.f_bavail)
-
-	print("Total Space MB", fs_info64.f_blocks * fs_info64.f_bsize / 1024**2 )
-	print("Total Free Space MB", fs_info64.f_bavail * fs_info64.f_bsize / 1024**2 )
-	'''
-	
-	disk_size_MB = round(fs_info64.f_blocks * fs_info64.f_bsize / 1024**2)
-	free_size_MB = round(fs_info64.f_bavail * fs_info64.f_bsize / 1024**2)
-	return disk_size_MB, free_size_MB
 
 
 
@@ -222,86 +335,6 @@ def TEST_disk_free_macos_clib_statfs32(directory, counter):
 			free_size_MB = round(fs_info.f_bavail * fs_info.f_bsize / 1024**2)
 			return disk_size_MB, free_size_MB
 
-
-# MAIN:
-
-
-try:
-    dir = sys.argv[1]
-except:
-    dir = "."
-
-if not os.path.isdir(dir):
-	print("dir", dir, "does exist")
-	sys.exit(1)
-
-print("dir is", dir)
-
-print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
-print("python's os.statvfs() says", disk_free_python_statvfs(dir))
-print("disk_free_macos_clib_statfs32 says", disk_free_macos_clib_statfs32(dir))
-print("disk_free_macos_clib_statfs64 says", disk_free_macos_clib_statfs64(dir))
-print("disk_free_macos_clib_statfs64_WORKING says", disk_free_macos_clib_statfs64_WORKING(dir))
-
-
-
-#print("Linux clib statfs32 says", disk_free_macos_clib_statfs32_LINUX(dir))
-
-
-
-counter = 0
-if counter > 0:
-
-	print("\nMeasure time it takes for X loops:", counter)
-	import time
-	
-	start_time = time.time()
-	for i in range(counter):
-		disk_free_os_df(dir)
-	print("disk_free_os_df() method: --- %s seconds ---" % (time.time() - start_time))
-
-	start_time = time.time()
-	for i in range(counter):
-		disk_free_python_statvfs(dir)
-	print("disk_free_python_statvfs() method: --- %s seconds ---" % (time.time() - start_time))
-	
-	start_time = time.time()
-	for i in range(counter):
-		disk_free_macos_clib_statfs32(dir)
-	print("disk_free_macos_clib_statfs32() method: --- %s seconds ---" % (time.time() - start_time))
-
-
-	start_time = time.time()
-	TEST_disk_free_macos_clib_statfs32(dir, counter)
-	print("TEST_disk_free_macos_clib_statfs32() method: --- %s seconds ---" % (time.time() - start_time))	
-
-	
-	print("Done with measurement\n")
-
-
-
-print("Now the real determination")
-
-use_statfs32 = False
-if platform.system().lower() == "darwin" and disk_free_os_df(dir)[0] > 4 * 1024**2:
-	# MacOS, and disk bigger than 4TB, so use statfs32()
-	use_statfs32 = True
-
-# We're done. Now use it
-
-if not use_statfs32:
-	print(disk_free_python_statvfs(dir))
-else:
-	print(disk_free_macos_clib_statfs32(dir))
-
-
 '''
 
-Linux:
-$ df -m .
-Filesystem   1M-blocks   Used Available Capacity iused      ifree %iused  Mounted on
-/dev/disk0s2    953049 428409    524390    45% 1754874 4293212405    0%   /
-
-
-'''
 
