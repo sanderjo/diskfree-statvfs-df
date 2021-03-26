@@ -71,7 +71,7 @@ def disk_free_macos_clib_statfs64(directory):
 	
 def disk_free_linux_clib_statfs(directory):
 	# Linux only! 
-	# direct system call to c-lib's statfs(), not python's os.statvfs()
+	# direct system call to c-lib's statfs(), not python's os.statvfs() (although on Linux, os.statvfs() is correct)
 	# Based on code of pudquick and blackntan
 
 	class statfs(Structure):
