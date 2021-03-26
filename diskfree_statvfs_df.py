@@ -65,6 +65,23 @@ def disk_free_clib_statfs32(directory):
 		        ("f_reserved4",   c_int64*4),
 		       ]
 
+
+
+	kern = CDLL(util.find_library('c'), use_errno=True)
+	root_volume = create_string_buffer(str.encode(directory))
+	fs_info = statfs32()
+	result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
+	disk_size_MB = round(fs_info.f_blocks * fs_info.f_bsize / 1024**2)
+	free_size_MB = round(fs_info.f_bavail * fs_info.f_bsize / 1024**2)
+	return disk_size_MB, free_size_MB
+
+
+
+def disk_free_clib_statfs64(directory):
+	# direct system call to c-lib's statfs(), not python's os.statvfs()
+	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?
+	# Based on code of pudquick and blackntan
+	
 	# when _DARWIN_FEATURE_64_BIT_INODE is defined
 	class statfs64(Structure):
 	    _fields_ = [
@@ -89,74 +106,79 @@ def disk_free_clib_statfs32(directory):
 
 	kern = CDLL(util.find_library('c'), use_errno=True)
 	root_volume = create_string_buffer(str.encode(directory))
-	fs_info = statfs32()
+	fs_info = statfs64()
 	result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
 	disk_size_MB = round(fs_info.f_blocks * fs_info.f_bsize / 1024**2)
 	free_size_MB = round(fs_info.f_bavail * fs_info.f_bsize / 1024**2)
 	return disk_size_MB, free_size_MB
 
 
+
+
+
 def TEST_disk_free_clib_statfs32(directory, counter):
-	# direct system call to c-lib's statfs(), not python's os.statvfs()
-	# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?	
-	
-	# when _DARWIN_FEATURE_64_BIT_INODE is not defined
-	class statfs32(Structure):
-	    _fields_ = [
-		        ("f_otype",       c_int16),
-		        ("f_oflags",      c_int16),
-		        ("f_bsize",       c_int64),
-		        ("f_iosize",      c_int64),
-		        ("f_blocks",      c_int64),
-		        ("f_bfree",       c_int64),
-		        ("f_bavail",      c_int64),
-		        ("f_files",       c_int64),
-		        ("f_ffree",       c_int64),
-		        ("f_fsid",        c_uint64),
-		        ("f_owner",       c_uint32),
-		        ("f_reserved1",   c_int16),
-		        ("f_type",        c_int16),
-		        ("f_flags",       c_int64),
-		        ("f_reserved2",   c_int64*2),
-		        ("f_fstypename",  c_char*15),
-		        ("f_mntonname",   c_char*90),
-		        ("f_mntfromname", c_char*90),
-		        ("f_reserved3",   c_char),
-		        ("f_reserved4",   c_int64*4),
-		       ]
+	if True:
+		if True:
+			# direct system call to c-lib's statfs(), not python's os.statvfs()
+			# Only safe on MacOS!!! Probably because of the data structure used below; Linux other types / byte length?	
+			
+			# when _DARWIN_FEATURE_64_BIT_INODE is not defined
+			class statfs32(Structure):
+			    _fields_ = [
+					("f_otype",       c_int16),
+					("f_oflags",      c_int16),
+					("f_bsize",       c_int64),
+					("f_iosize",      c_int64),
+					("f_blocks",      c_int64),
+					("f_bfree",       c_int64),
+					("f_bavail",      c_int64),
+					("f_files",       c_int64),
+					("f_ffree",       c_int64),
+					("f_fsid",        c_uint64),
+					("f_owner",       c_uint32),
+					("f_reserved1",   c_int16),
+					("f_type",        c_int16),
+					("f_flags",       c_int64),
+					("f_reserved2",   c_int64*2),
+					("f_fstypename",  c_char*15),
+					("f_mntonname",   c_char*90),
+					("f_mntfromname", c_char*90),
+					("f_reserved3",   c_char),
+					("f_reserved4",   c_int64*4),
+				       ]
 
-	# when _DARWIN_FEATURE_64_BIT_INODE is defined
-	class statfs64(Structure):
-	    _fields_ = [
-		        ("f_bsize",       c_uint32),
-		        ("f_iosize",      c_int32),
-		        ("f_blocks",      c_uint64),
-		        ("f_bfree",       c_uint64),
-		        ("f_bavail",      c_uint64),
-		        ("f_files",       c_uint64),
-		        ("f_ffree",       c_uint64),
-		        ("f_fsid",        c_uint64),
-		        ("f_owner",       c_uint32),
-		        ("f_type",        c_uint32),
-		        ("f_flags",       c_uint32),
-		        ("f_fssubtype",   c_uint32),
-		        ("f_fstypename",  c_char*16),
-		        ("f_mntonname",   c_char*1024),
-		        ("f_mntfromname", c_char*1024),
-		        ("f_reserved",    c_uint32*8),
-		       ]
-	
+			# when _DARWIN_FEATURE_64_BIT_INODE is defined
+			class statfs64(Structure):
+			    _fields_ = [
+					("f_bsize",       c_uint32),
+					("f_iosize",      c_int32),
+					("f_blocks",      c_uint64),
+					("f_bfree",       c_uint64),
+					("f_bavail",      c_uint64),
+					("f_files",       c_uint64),
+					("f_ffree",       c_uint64),
+					("f_fsid",        c_uint64),
+					("f_owner",       c_uint32),
+					("f_type",        c_uint32),
+					("f_flags",       c_uint32),
+					("f_fssubtype",   c_uint32),
+					("f_fstypename",  c_char*16),
+					("f_mntonname",   c_char*1024),
+					("f_mntfromname", c_char*1024),
+					("f_reserved",    c_uint32*8),
+				       ]
+			
 
-	kern = CDLL(util.find_library('c'), use_errno=True)
-	root_volume = create_string_buffer(str.encode(dir))
-	fs_info = statfs32()
-	
-	for i in range(counter):
-		result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
-		
-	disk_size_MB = round(fs_info.f_blocks * fs_info.f_bsize / 1024**2)
-	free_size_MB = round(fs_info.f_bavail * fs_info.f_bsize / 1024**2)
-	return disk_size_MB, free_size_MB
+			kern = CDLL(util.find_library('c'), use_errno=True)
+			root_volume = create_string_buffer(str.encode(dir))
+			fs_info = statfs32()
+			
+			for i in range(counter):
+				result = kern.statfs(root_volume, byref(fs_info)) # you have to call this to get fs_info filled out
+				
+			disk_size_MB = round(fs_info.f_blocks * fs_info.f_bsize / 1024**2)
+			free_size_MB = round(fs_info.f_bavail * fs_info.f_bsize / 1024**2)
+			return disk_size_MB, free_size_MB
 
 
 # MAIN:
@@ -176,6 +198,9 @@ print("dir is", dir)
 print("df is always right, so: Disk size, and free (in MB):", disk_free_os_df(dir))
 print("python's os.statvfs() says", disk_free_python_statvfs(dir))
 print("clib statfs32 says", disk_free_clib_statfs32(dir))
+print("clib statfs64 says", disk_free_clib_statfs64(dir))
+
+#print("Linux clib statfs32 says", disk_free_clib_statfs32_LINUX(dir))
 
 
 
